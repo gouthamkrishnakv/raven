@@ -3,9 +3,8 @@
 
 from pydantic import Field
 
-from raven.models.transfer_type import TransferType
-from .base import BaseRequest
+from .base import BaseRequest, TransferType
 
 
 class InfoRequest(BaseRequest):
-    ttype = Field(default=TransferType.INFO)
+    ttype: TransferType = Field(default=TransferType.INFO)

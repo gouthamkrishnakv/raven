@@ -7,5 +7,5 @@ from .base import BaseRequest, TransferType
 
 
 class PingRequest(BaseRequest):
-    ttype = Field(default=TransferType.PING)
-    message = Field("PING")
+    ttype: TransferType = Field(default=TransferType.PING)
+    message: str = Field("PING")

@@ -3,6 +3,7 @@
 
 from raven.models.transfer_type import TransferType
 from pydantic import BaseModel
+from msgpack import dumps
 
 
 class BaseRequest(BaseModel):
@@ -11,3 +12,6 @@ class BaseRequest(BaseModel):
     """
 
     ttype: TransferType
+
+    def parse(self):
+        return dumps(self.dict())
