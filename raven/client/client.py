@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from time import time
+
 from msgpack import dumps, loads
 from raven.models.request.info_request import InfoRequest
 from raven.models.response.info_response import InfoResponse
