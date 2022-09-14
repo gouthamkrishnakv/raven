@@ -7,7 +7,7 @@ from asyncio import run
 
 # -- Package Imports
 from raven.client.client import client
-from raven.server.server import server
+from raven.server import server
 
 
 def run_client():
