@@ -3,95 +3,87 @@
 
 from queue import Queue
 from threading import Lock, Thread
+
 from time import sleep
-from typing import Any
-import msgpack
-
 from evdev import InputDevice, InputEvent
+from signal import sigwait, SIGINT
 
 
-class InputReader(Thread):
-    """
-    Input Reader Class
-    """
+class InputThread(Thread):
+    tenable: bool = False
+    lock: Lock = Lock()
+    input_dev: InputDevice
+    queue: Queue
 
-    lock: Lock
-    queue: Queue[InputEvent]
-    enable: bool
-    device: InputDevice
-
-    def __init__(self, dev: str = "/dev/input/event4") -> None:
+    def __init__(self, input_device: str, shared_queue: Queue = Queue(maxsize=4096)):
         Thread.__init__(self)
-        self.lock = Lock()
-        self.queue = Queue()
-        self.enable = True
-        self.device = InputDevice(dev)
-        self.capabilities = self.device.capabilities()
+        self.input_dev = InputDevice(input_device)
+        self.queue = shared_queue
 
     def run(self):
-        while self.enable:
-            with self.lock:
-                val = self.device.read_one()
-                if val is not None:
-                    self.queue.put(val)
-                else:
-                    # 0.01s delay
-                    sleep(0.1)
+        """
+        Work on this later
+        """
+        # Grab the pointer
+        self.input_dev.grab()
+        print(">> POINTER GRABBED <<")
+        while self.tenable:
+            input_ev: InputEvent = self.input_dev.read_one()
+            if input_ev is not None:
+                # Event found
+                # print(input_ev)
+                self.queue.put(input_ev)
+                print("EV")
+            else:
+                # Sleep for 2ms
+                sleep(0.002)
+        # Ungrab the pointer
+        self.input_dev.ungrab()
+        print("\n>> POINTER UNGRABBED <<")
 
-    def itstop(self):
+    def enable(self):
         with self.lock:
-            self.enable = False
+            self.tenable = True
+
+    def disable(self):
+        with self.lock:
+            self.tenable = False
 
 
-class ConsoleWriter(Thread):
-    """
-    Console Writer Class
-    """
+class ConsoleOutput(Thread):
+    queue: Queue
+    tenable: bool
 
-    lock: Lock
-    enable: bool
-    queue: Queue[Any]
-
-    def __init__(self, c_queue: Queue[Any]) -> None:
+    def __init__(self, shared_queue: Queue, event_enable: bool):
         Thread.__init__(self)
-        self.enable = True
-        self.lock = Lock()
-        self.queue = c_queue
+        self.queue = shared_queue
+        self.tenable = event_enable
 
     def run(self):
-        # Read from queue until this disables
-        # Add variable checks and assignments for cases where it could run in
-        # non-single threaded situations
-        enabled = False
-        with self.lock:
-            enabled = self.enable
-        while enabled:
-            with self.lock:
-                print(self.queue.get())
-                enabled = self.enable
-        # After this is closed, clear out the queue
-        while not self.queue.empty():
+        # STOP when event == STOP OR queue is NOT EMPTY
+        print(">> OUTPUT THREAD STARTED <<")
+        while InputThread.tenable:
+            # Print the queue value
+            print("R")
             print(self.queue.get())
-
-    def ctstop(self):
-        """
-        Signal the thread to stop the server
-        """
-        with self.lock:
-            self.enable = False
+        print(">> OUTPUT THREAD STOPPED <<")
 
 
 def main():
-    it = InputReader()
-    print(it.capabilities)
-    print(msgpack.loads(msgpack.dumps(it.capabilities), strict_map_key=False))
-    ct = ConsoleWriter(it.queue)
-    try:
-        it.start()
-        ct.start()
-    except KeyboardInterrupt:
-        print(">>> STOPPING CONSOLE THREADS")
-        it.itstop()
-        it.join()
-        ct.ctstop()
-        ct.join()
+    it = InputThread("/dev/input/event4")
+    ct = ConsoleOutput(it.queue, it.tenable)
+    it.enable()
+    # Start threads
+    # - input thread
+    it.start()
+    # - output thread
+    ct.start()
+    # Wait until a SIGINT is thrown (Ctrl+C is hit)
+    sigwait([SIGINT])
+    # Send signal to stop the queue
+    it.disable()
+    # Stop the input thread
+    it.join()
+    # Stop the output thread
+    ct.join()
+    print("Thread Stopped")
