@@ -33,7 +33,7 @@ class InputThread(Thread):
     def run(self):
         self.input_device.grab()
         self.logger.info("> POINTER GRABBED <")
-        while not self.stop_ev.wait(0):
+        while not self.stop_ev.is_set():
             input_ev: InputEvent = self.input_device.read_one()
             if input_ev is not None:
                 # Event found
@@ -62,7 +62,7 @@ class ConsoleOutput(Thread):
 
     def run(self):
         self.logger.info("CONSOLE OUTPUT STARTED")
-        while not self.stop_ev.wait(0.0001):
+        while not self.stop_ev.is_set():
             self.logger.info("IREP: %s", str(self.iqueue.get()))
         self.logger.info("STOPPING CONSOLE THREAD")
         while not self.iqueue.empty():
