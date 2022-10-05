@@ -36,12 +36,13 @@ class InputThread(Thread):
     def run(self):
         self.input_device.grab()
         self.logger.info("> POINTER GRABBED <")
-        while not self.stop_ev.wait(self.delay):
-            input_ev: InputEvent = self.input_device.read_one()
-            if input_ev is not None:
+        iter = self.input_device.read_loop()
+        while not self.stop_ev.is_set():
+            if self.stop_ev.is_set():
+                break
+            if any(iter):
                 # Event found
-                # self.logger.debug("EV: %s", str(input_ev))
-                self.iqueue.put(input_ev)
+                self.iqueue.put(next(iter))
         self.input_device.ungrab()
         self.input_device.close()
         self.logger.info("> POINTER UNGRABBED <")
