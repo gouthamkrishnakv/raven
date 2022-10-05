@@ -64,15 +64,15 @@ class ConsoleOutput(Thread):
         self.iqueue = queue
 
     def run(self):
-        self.logger.info("CONSOLE OUTPUT STARTED")
+        self.logger.info("STARTED")
         # Delay of 1 ms
         while not self.stop_ev.wait(0.000_1):
             if self.iqueue.qsize() > 0:
                 self.logger.info("IREP: %s", str(self.iqueue.get()))
-        self.logger.info("STOPPING CONSOLE THREAD")
+        self.logger.info("STOPPING")
         while not self.iqueue.empty():
             self.logger.info("IREP: %s", str(self.iqueue.get()))
-        self.logger.info("CONSOLE THREAD STOPPED")
+        self.logger.info("STOPPED")
 
 
 def main():
