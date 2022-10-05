@@ -23,6 +23,9 @@ class InputThread(Thread):
     stop_ev: Event
     iqueue: Queue[InputEvent]
     input_device: InputDevice
+    # 120Hz is taken from the fact that most touch sample rate is 2x touchpad resolution
+    # Expecting 120Hz * 8 as there can be at most 8 individual requests sent
+    delay: float = 1 / (120 * 8)
 
     def __init__(self, input_device: str):
         Thread.__init__(self)
@@ -33,7 +36,7 @@ class InputThread(Thread):
     def run(self):
         self.input_device.grab()
         self.logger.info("> POINTER GRABBED <")
-        while not self.stop_ev.wait(0.000_01):
+        while not self.stop_ev.wait(self.delay):
             input_ev: InputEvent = self.input_device.read_one()
             if input_ev is not None:
                 # Event found
