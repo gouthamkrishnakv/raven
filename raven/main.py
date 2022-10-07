@@ -37,10 +37,7 @@ class InputThread(Thread):
         self.input_device.grab()
         self.logger.info("> POINTER GRABBED <")
         while not self.stop_ev.wait(self.delay):
-            input_ev: InputEvent = self.input_device.read_one()
-            if input_ev is not None:
-                # Event found
-                # self.logger.debug("EV: %s", str(input_ev))
+            if (input_ev := self.input_device.read_one()) is not None:
                 self.iqueue.put(input_ev)
         self.input_device.ungrab()
         self.input_device.close()
