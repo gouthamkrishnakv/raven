@@ -14,14 +14,8 @@ class InputProtocol(Protocol):
     stop_ev: Event
     ipqueue: Queue
 
-    def run(self, stop_ev: Event, ipqueue: Queue):
-        pass
-
     async def report(self, val: Any):
         await self.ipqueue.put(val)
-
-    async def run_async(self):
-        pass
 
 
 class PointerInput(InputProtocol):
