@@ -48,7 +48,7 @@ class PointerInput(InputProtocol):
         self.dev.grab()
         while not self.stop_ev.is_set():
             if (input_ev := self.dev.read_one()) is not None:
-                await self.ipqueue.put(input_ev)
+                await self.report(input_ev)
             await asyncio.sleep(self.delay)
         self.dev.ungrab()
 
