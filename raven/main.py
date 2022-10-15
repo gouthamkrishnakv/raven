@@ -7,6 +7,50 @@ import logging
 from signal import SIGINT, sigwait
 from threading import Thread
 from evdev import InputDevice
+from typing import Any, Protocol
+
+
+class InputProtocol(Protocol):
+    stop_ev: Event
+    ipqueue: Queue
+
+    def run(self, stop_ev: Event, ipqueue: Queue):
+        pass
+
+    async def report(self, val: Any):
+        await self.ipqueue.put(val)
+
+    async def run_async(self):
+        pass
+
+
+class PointerInput(InputProtocol):
+    """
+    Passing in pointer into here
+    """
+
+    dev: InputDevice
+    delay: float
+
+    def __init__(
+        self, stop_ev: Event, ipqueue: Queue, dev: InputDevice, delay: float
+    ) -> None:
+        super().__init__()
+        self.stop_ev = stop_ev
+        self.ipqueue = ipqueue
+        self.dev = dev
+        self.delay = delay
+
+    def run(self):
+        pass
+
+    async def run_async(self):
+        self.dev.grab()
+        while not self.stop_ev.is_set():
+            if (input_ev := self.dev.read_one()) is not None:
+                await self.ipqueue.put(input_ev)
+            await asyncio.sleep(self.delay)
+        self.dev.ungrab()
 
 
 class AppThread(Thread):
@@ -29,11 +73,9 @@ class AppThread(Thread):
 
     async def read_inp(self):
         print("RI: START")
-        self.input_device.grab()
-        while not self.stop_ev.is_set():
-            if (input_ev := self.input_device.read_one()) is not None:
-                await self.iqueue.put(input_ev)
-            await asyncio.sleep(self.delay)
+        await PointerInput(
+            self.stop_ev, self.iqueue, self.input_device, self.delay
+        ).run_async()
         print("RI: END")
 
     async def write_console(self):
