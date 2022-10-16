@@ -14,6 +14,12 @@ class InputProtocol(Protocol):
     stop_ev: Event
     ipqueue: Queue
 
+    def run_async(self):
+        """
+        Interface method for InputProtocol
+        """
+        ...
+
     async def report(self, val: Any):
         await self.ipqueue.put(val)
 
@@ -48,7 +54,7 @@ class PointerInput(InputProtocol):
 
 
 class AppThread(Thread):
-    logger = logging.getLevelName("AppThread")
+    logger = logging.getLogger("AppThread")
 
     stop_ev: Event
     iqueue: Queue
@@ -66,24 +72,27 @@ class AppThread(Thread):
         asyncio.run(self.mainloop())
 
     async def read_inp(self):
-        print("RI: START")
+        self.logger.info("START")
         await PointerInput(
             self.stop_ev, self.iqueue, self.input_device, self.delay
         ).run_async()
-        print("RI: END")
+        self.logger.info("END")
 
     async def write_console(self):
-        print("CW: START")
+        self.logger.info("START")
         while not self.stop_ev.is_set():
             if not self.iqueue.empty():
-                print(await self.iqueue.get())
+                self.logger.info(await self.iqueue.get())
             await asyncio.sleep(0.000_1)
-        print("CW: STOPPING")
+        self.logger.info("STOPPING")
         while not self.iqueue.empty():
-            print(await self.iqueue.get())
-        print("CW: END")
+            self.logger.info(await self.iqueue.get())
+        self.logger.info("END")
 
     async def mainloop(self):
+        """
+        Run Reading and Writing Tasks as asynchronous coroutines.
+        """
         asyncio.create_task(self.read_inp())
         asyncio.create_task(self.write_console())
         while not self.stop_ev.is_set():
@@ -92,6 +101,7 @@ class AppThread(Thread):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     apt = AppThread()
     print("STARTING THREAD")
     apt.start()
