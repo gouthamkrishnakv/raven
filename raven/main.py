@@ -58,7 +58,7 @@ class AppThread(Thread):
 
     stop_ev: Event
     iqueue: Queue
-    input_device: InputDevice
+    input_device: PointerInput
 
     delay: float = 1 / (120 * 8)
 
@@ -66,16 +66,16 @@ class AppThread(Thread):
         Thread.__init__(self)
         self.stop_ev = Event()
         self.iqueue = Queue()
-        self.input_device = InputDevice(dev)
+        self.input_device = PointerInput(
+            self.stop_ev, self.iqueue, InputDevice(dev), self.delay
+        )
 
     def run(self):
         asyncio.run(self.mainloop())
 
     async def read_inp(self):
         self.logger.info("START")
-        await PointerInput(
-            self.stop_ev, self.iqueue, self.input_device, self.delay
-        ).run_async()
+        await self.input_device.run_async()
         self.logger.info("END")
 
     async def write_console(self):
