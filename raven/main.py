@@ -28,6 +28,7 @@ class PointerInput(InputProtocol):
     """
     Passing in pointer into here
     """
+    logger = logging.getLogger("PointerInput")
 
     dev: InputDevice
     delay: float
@@ -45,12 +46,45 @@ class PointerInput(InputProtocol):
         pass
 
     async def run_async(self):
+        self.logger.info("START")
         self.dev.grab()
         while not self.stop_ev.is_set():
             if (input_ev := self.dev.read_one()) is not None:
                 await self.report(input_ev)
             await asyncio.sleep(self.delay)
         self.dev.ungrab()
+        self.logger.info("END")
+
+
+class OutputProtocol(Protocol):
+    stop_ev: Event
+    oqueue: Queue
+
+    async def run_async(self):
+        ...
+
+
+class ConsoleOutput(OutputProtocol):
+    """
+    Pointer Input Class
+    """
+
+    logger = logging.getLogger("ConsoleOutput")
+
+    def __init__(self, stop_ev: Event, oqueue: Queue):
+        self.stop_ev = stop_ev
+        self.oqueue = oqueue
+
+    async def run_async(self):
+        self.logger.info("START")
+        while not self.stop_ev.is_set():
+            if not self.oqueue.empty():
+                self.logger.info(await self.oqueue.get())
+            await asyncio.sleep(0.000_1)
+        self.logger.info("STOPPING")
+        while not self.oqueue.empty():
+            self.logger.info(await self.oqueue.get())
+        self.logger.info("END")
 
 
 class AppThread(Thread):
@@ -58,7 +92,9 @@ class AppThread(Thread):
 
     stop_ev: Event
     iqueue: Queue
-    input_device: PointerInput
+    # We need multiple of these. The queue will be common and is shared
+    input_protocol: InputProtocol
+    output_protocol: OutputProtocol
 
     delay: float = 1 / (120 * 8)
 
@@ -66,35 +102,26 @@ class AppThread(Thread):
         Thread.__init__(self)
         self.stop_ev = Event()
         self.iqueue = Queue()
-        self.input_device = PointerInput(
+        self.input_protocol = PointerInput(
             self.stop_ev, self.iqueue, InputDevice(dev), self.delay
         )
+        self.output_protocol = ConsoleOutput(self.stop_ev, self.iqueue)
 
     def run(self):
         asyncio.run(self.mainloop())
 
     async def read_inp(self):
-        self.logger.info("START")
-        await self.input_device.run_async()
-        self.logger.info("END")
+        await self.input_protocol.run_async()
 
-    async def write_console(self):
-        self.logger.info("START")
-        while not self.stop_ev.is_set():
-            if not self.iqueue.empty():
-                self.logger.info(await self.iqueue.get())
-            await asyncio.sleep(0.000_1)
-        self.logger.info("STOPPING")
-        while not self.iqueue.empty():
-            self.logger.info(await self.iqueue.get())
-        self.logger.info("END")
+    async def write(self):
+        await self.output_protocol.run_async()
 
     async def mainloop(self):
         """
         Run Reading and Writing Tasks as asynchronous coroutines.
         """
         asyncio.create_task(self.read_inp())
-        asyncio.create_task(self.write_console())
+        asyncio.create_task(self.write())
         while not self.stop_ev.is_set():
             await asyncio.sleep(0.1)
         asyncio.get_event_loop().stop()
