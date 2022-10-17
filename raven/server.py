@@ -7,7 +7,7 @@ from asyncio import run, Future
 
 async def echo(protocol: WebSocketServerProtocol):
     async for message in protocol:
-        await protocol.send(message)
+        print(message)
 
 
 async def main():

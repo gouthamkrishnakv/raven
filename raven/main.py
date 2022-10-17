@@ -8,6 +8,7 @@ from signal import SIGINT, sigwait
 from threading import Thread
 from evdev import InputDevice
 from typing import Any, Protocol
+from websockets.client import connect
 
 
 class InputProtocol(Protocol):
@@ -28,6 +29,7 @@ class PointerInput(InputProtocol):
     """
     Passing in pointer into here
     """
+
     logger = logging.getLogger("PointerInput")
 
     dev: InputDevice
@@ -87,6 +89,32 @@ class ConsoleOutput(OutputProtocol):
         self.logger.info("END")
 
 
+class WebsocketOutput(OutputProtocol):
+    logger = logging.getLogger("WebSocketsOutput")
+    # WebSockets URL
+    uri: str
+
+    def __init__(self, stop_ev: Event, oqueue: Queue, uri: str):
+        self.stop_ev = stop_ev
+        self.oqueue = oqueue
+        self.uri = uri
+
+    async def run_async(self):
+        self.logger.info("START")
+        async with connect(self.uri) as client:
+            self.logger.info("CONNECTED")
+            while not self.stop_ev.is_set():
+                if not self.oqueue.empty():
+                    await client.send(str(await self.oqueue.get()))
+                await asyncio.sleep(0.001)
+            self.logger.info("STOPPING")
+            while not self.oqueue.empty():
+                await client.send(str(await self.oqueue.get()))
+            self.logger.info("CLOSING")
+            await client.close()
+        self.logger.info("END")
+
+
 class AppThread(Thread):
     logger = logging.getLogger("AppThread")
 
@@ -101,11 +129,13 @@ class AppThread(Thread):
     def __init__(self, dev: str = "/dev/input/event8"):
         Thread.__init__(self)
         self.stop_ev = Event()
-        self.iqueue = Queue()
+        self.iqueue = Queue(maxsize=2000)
         self.input_protocol = PointerInput(
             self.stop_ev, self.iqueue, InputDevice(dev), self.delay
         )
-        self.output_protocol = ConsoleOutput(self.stop_ev, self.iqueue)
+        self.output_protocol = WebsocketOutput(
+            self.stop_ev, self.iqueue, "ws://localhost:8766"
+        )
 
     def run(self):
         asyncio.run(self.mainloop())
@@ -120,11 +150,12 @@ class AppThread(Thread):
         """
         Run Reading and Writing Tasks as asynchronous coroutines.
         """
+        # Add tasks to running event loop
         asyncio.create_task(self.read_inp())
         asyncio.create_task(self.write())
+        # Wait till the event is stopped
         while not self.stop_ev.is_set():
             await asyncio.sleep(0.1)
-        asyncio.get_event_loop().stop()
 
 
 def main():
