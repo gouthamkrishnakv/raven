@@ -6,6 +6,9 @@ from asyncio import run, Future
 
 
 async def echo(protocol: WebSocketServerProtocol):
+    """
+    This prints the message.
+    """
     async for message in protocol:
         print(message)
 

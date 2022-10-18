@@ -3,6 +3,7 @@
 
 from asyncio import Event, Queue
 import asyncio
+import msgpack
 import logging
 from signal import SIGINT, sigwait
 from threading import Thread
@@ -15,7 +16,7 @@ class InputProtocol(Protocol):
     stop_ev: Event
     ipqueue: Queue
 
-    def run_async(self):
+    async def run_async(self):
         """
         Interface method for InputProtocol
         """
@@ -49,6 +50,7 @@ class PointerInput(InputProtocol):
 
     async def run_async(self):
         self.logger.info("START")
+        await self.report(msgpack.dumps(self.dev.capabilities()))
         self.dev.grab()
         while not self.stop_ev.is_set():
             if (input_ev := self.dev.read_one()) is not None:
@@ -59,6 +61,11 @@ class PointerInput(InputProtocol):
 
 
 class OutputProtocol(Protocol):
+    """
+    Output Protocol
+
+    This is an output interface we require.
+    """
     stop_ev: Event
     oqueue: Queue
 
@@ -111,6 +118,7 @@ class WebsocketOutput(OutputProtocol):
             while not self.oqueue.empty():
                 await client.send(str(await self.oqueue.get()))
             self.logger.info("CLOSING")
+            await client.send("CLOSING")
             await client.close()
         self.logger.info("END")
 
@@ -126,7 +134,7 @@ class AppThread(Thread):
 
     delay: float = 1 / (120 * 8)
 
-    def __init__(self, dev: str = "/dev/input/event8"):
+    def __init__(self, dev: str = "/dev/input/event4"):
         Thread.__init__(self)
         self.stop_ev = Event()
         self.iqueue = Queue(maxsize=2000)
