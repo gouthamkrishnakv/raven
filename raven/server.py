@@ -18,4 +18,8 @@ async def main():
         await Future()
 
 
-run(main())
+def server():
+    try:
+        run(main())
+    except KeyboardInterrupt:
+        print("\rStopping")
