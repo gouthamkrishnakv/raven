@@ -14,7 +14,7 @@ class InputProtocol(Protocol):
     stop_ev: Event
     ipqueue: Queue
 
-    def run_async(self):
+    async def run_async(self):
         """
         Interface method for InputProtocol
         """
