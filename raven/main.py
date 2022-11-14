@@ -6,7 +6,7 @@ from enum import Enum
 
 from raven.server import server
 
-from .client import ClientApp
+from raven.client import ClientApp
 
 
 class AppType(Enum):

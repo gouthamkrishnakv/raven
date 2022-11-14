@@ -6,6 +6,10 @@ import logging
 from evdev import InputDevice
 from signal import SIGINT, sigwait
 from threading import Event, Thread
+from raven.client.input.input_device import DeviceInput
+
+
+from raven.client.transport.websocket_output import WebsocketOutput
 
 
 class ClientApp(Thread):
@@ -19,7 +23,7 @@ class ClientApp(Thread):
     inqueue: asyncio.Queue
     dev: InputDevice
 
-    delay = 1 / (60 * 2 * 5)
+    delay = 1 / (60 * 2 * 5 * 8)
 
     def __init__(self, dev: str = "/dev/input/event8"):
         Thread.__init__(self)
@@ -33,19 +37,14 @@ class ClientApp(Thread):
     async def apploop(self):
         # -- Add tasks here using asyncio.create_task
         # Stop if stop_ev is set
-        asyncio.create_task(self.device_loop())
+        asyncio.create_task(
+            DeviceInput(self.dev, self.inqueue, self.stop_ev, self.delay).start()
+        )
+        asyncio.create_task(
+            WebsocketOutput("ws://localhost:8766", self.inqueue, self.delay).start()
+        )
         while not self.stop_ev.is_set():
             await asyncio.sleep(0.1)
-
-    async def device_loop(self):
-        self.logger.info("STARTING")
-        self.dev.grab()
-        while not self.stop_ev.is_set():
-            if (input_ev := self.dev.read_one()) is not None:
-                await self.inqueue.put(input_ev)
-            await asyncio.sleep(self.delay)
-        self.dev.ungrab()
-        self.logger.info("END")
 
     @staticmethod
     def launch():
