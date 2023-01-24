@@ -4,8 +4,7 @@
 import argparse
 from enum import Enum
 
-from raven.server import server
-
+from raven.server import ServerApp
 from raven.client import ClientApp
 
 
@@ -33,4 +32,4 @@ def main():
         ClientApp.launch()
     else:
         print("Server Starting")
-        server()
+        ServerApp.launch()

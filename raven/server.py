@@ -5,21 +5,24 @@ from websockets.server import serve, WebSocketServerProtocol
 from asyncio import run, Future
 
 
-async def echo(protocol: WebSocketServerProtocol):
-    """
-    This prints the message.
-    """
-    async for message in protocol:
-        print(message)
+class ServerApp:
+    def __init__(self) -> None:
+        pass
 
+    async def echo(self, protocol: WebSocketServerProtocol):
+        """
+        This prints the message.
+        """
+        async for message in protocol:
+            print(message)
 
-async def main():
-    async with serve(echo, "localhost", 8766):
-        await Future()
+    async def main(self):
+        async with serve(self.echo, "localhost", 8766):
+            await Future()
 
-
-def server():
-    try:
-        run(main())
-    except KeyboardInterrupt:
-        print("\rStopping")
+    @staticmethod
+    def launch():
+        try:
+            run(ServerApp().main())
+        except KeyboardInterrupt:
+            print("\rStopping")
